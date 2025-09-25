@@ -1,4 +1,22 @@
 <template>
+  <div class="participants-grid-wrapper">
+    <div class="participants-grid-content">
+      <div class="participants-grid" 
+        :class="{
+          one: gridItems.length == 1,
+          few: gridItems.length < 5 && gridItems.length > 1,
+          many: gridItems.length >= 5
+        }">
+        <div class="participants-grid-item" v-for="n in gridItems" :key="n">
+          <video class="participants-grid-item-video" />
+        </div>
+      </div>
+      <div class="participants-grid-buttons-wrapper">
+
+      </div>
+    </div>
+  </div>
+  <!-- 
   <h1>You did it!</h1>
   <p>
     Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
@@ -23,12 +41,15 @@
       </div>
     </div>
   </div>
+  -->
 </template>
 
 <script setup>
 import { onMounted, onBeforeUnmount, ref, reactive } from "vue";
 import Janus from 'janus-gateway';
 import adapter from 'webrtc-adapter';
+
+const gridItems = Array.from({ length: 10 }, (_, i) => i + 1)
 
 // 1) УКАЖИТЕ свой WSS до Janus и ICE
 const JANUS_URL = "wss://janus.tulister.com/janus";
@@ -245,4 +266,6 @@ onBeforeUnmount(leave);
 
 </script>
 
-<style scoped></style>
+<style lang="scss" scoped>
+@use "@/resources/styles/participants-grid";
+</style>
