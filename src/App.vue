@@ -23,40 +23,23 @@
       </div>
     </div>
   </div>
-
-  <!-- сетка для множественных звонков -->
-  <!-- <div class="participants-grid-wrapper">
-    <div class="participants-grid-content">
-      <div class="participants-grid" 
-        :class="{
-          one: gridItems.length == 1,
-          few: gridItems.length < 5 && gridItems.length > 1,
-          many: gridItems.length >= 5
-        }">
-        <div class="participants-grid-item" v-for="n in gridItems" :key="n">
-          <video class="participants-grid-item-video" />
-        </div>
-      </div>
-    </div>
-  </div> -->
 </template>
 
 <script setup>
 import { onMounted, onBeforeUnmount, ref, reactive } from "vue";
-import * as JanusMod from 'janus-gateway';
+// webrtc-adapter как сайд-эффект (без default экспорта)
 import adapter from 'webrtc-adapter';
 
 const gridItems = Array.from({ length: 10 }, (_, i) => i + 1)
 
-const Janus = (JanusMod && (JanusMod.default || JanusMod.Janus)) || window.Janus;
+// Janus поднимем динамически (устойчиво к разным типам экспорта)
+let Janus;
 
-if (!Janus) {
-  console.error('Janus library failed to load:', { JanusMod, windowJanus: window.Janus });
-  throw new Error('Janus is not available (check bundling/export).');
-}
+// 1) URL до Janus и ICE
+const JANUS_URL = import.meta.env.VITE_JANUS_URL ?? "wss://janus.tulister.com/"; // если проксируешь корень
+// если у тебя наружу /janus, то используй:
+// const JANUS_URL = import.meta.env.VITE_JANUS_URL ?? "wss://janus.tulister.com/janus";
 
-// 1) УКАЖИТЕ свой WSS до Janus и ICE
-const JANUS_URL = "wss://janus.tulister.com/";
 const ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
   {
@@ -70,7 +53,7 @@ const ICE_SERVERS = [
 ];
 
 // 2) Константы видеокомнаты
-const ROOM_ID = 1234; // создайте/используйте свою
+const ROOM_ID = 1234;
 
 // Refs для <video>/<audio>
 const localVideo = ref(null);
@@ -87,17 +70,27 @@ const state = reactive({
 });
 const connected = ref(false);
 
-// Утилита: Safari?
+// Safari?
 const isSafari = () =>
-  Janus?.webRTCAdapter?.browserDetails?.browser === "safari";
+  !!Janus?.webRTCAdapter && Janus.webRTCAdapter.browserDetails?.browser === "safari";
 
 // Подключение
-const connect = () => {
+const connect = async () => {
   if (connected.value) return;
+
+  // динамический импорт janus-gateway
+  const mod = await import('janus-gateway');
+  Janus = mod.default || mod.Janus || window.Janus;
+  if (!Janus) {
+    console.error('Janus library failed to load:', { mod, windowJanus: window.Janus });
+    alert('Не удалось загрузить Janus библиотеку');
+    return;
+  }
 
   Janus.init({
     debug: true,
-    dependencies: Janus.useDefaultDependencies({ adapter }),
+    // adapter уже подключён сайд-эффектом; дефолтные зависимости достаточно
+    dependencies: Janus.useDefaultDependencies({adapter}),
     callback: () => {
       state.janus = new Janus({
         server: JANUS_URL,
@@ -130,15 +123,12 @@ function attachPublisher() {
         state.myPrivateId = msg.private_id;
         connected.value = true;
 
-        // Если есть паблишеры в комнате — подпишемся
         if (msg.publishers?.length) subscribeToPublishers(msg.publishers);
-
-        // публикуем свои треки
         publishMyMedia();
       } else if (event === "event") {
         if (msg.publishers?.length) subscribeToPublishers(msg.publishers);
         if (msg.leaving || msg.unpublished) {
-          // тут можно подчистить UI
+          // подчистка UI при уходе/отписке
         }
       }
 
@@ -150,7 +140,6 @@ function attachPublisher() {
       if (!on) return;
       const stream = new MediaStream([track]);
       if (track.kind === "video" && localVideo.value) {
-        // важно: локальное превью должно быть muted + playsinline
         localVideo.value.muted = true;
         Janus.attachMediaStream(localVideo.value, stream);
       }
@@ -169,10 +158,6 @@ function joinRoomAsPublisher() {
 }
 
 function publishMyMedia() {
-  // Важные моменты для мобилок:
-  // - локальное видео muted + playsinline
-  // - для Safari лучше отключить simulcast
-  // - для задней камеры можно добавить facingMode: { exact: "environment" }
   const videoConstraints = true; // или { facingMode: { exact: "user" | "environment" } }
 
   const tracks = [
@@ -188,7 +173,7 @@ function publishMyMedia() {
   state.plugin.createOffer({
     iceRestart: true,
     tracks,
-    ...(isSafari() ? {} : { video: "lowres" }), // на Safari лучше не задавать профили строкой
+    ...(isSafari() ? {} : { video: "lowres" }),
     success: (jsep) => {
       const body = { request: "configure", audio: true, video: true };
       state.plugin.send({ message: body, jsep });
@@ -202,7 +187,6 @@ function publishMyMedia() {
 
 // Подписка на других участников
 function subscribeToPublishers(pubs) {
-  // Поднимаем (или переиспользуем) сабскрайбер
   if (!state.sub) {
     state.janus.attach({
       plugin: "janus.plugin.videoroom",
@@ -212,9 +196,6 @@ function subscribeToPublishers(pubs) {
       },
       error: console.error,
       onmessage: (msg, jsep) => {
-        if (msg.streams) {
-          // ok
-        }
         if (jsep) {
           state.sub.createAnswer({
             jsep,
@@ -226,8 +207,8 @@ function subscribeToPublishers(pubs) {
           });
         }
       },
-      onremotetrack: (track, mid, on, metadata) => {
-        if (!on) return; // отписался/выключил
+      onremotetrack: (track, mid, on /*, metadata*/) => {
+        if (!on) return;
         const s = new MediaStream([track]);
         if (track.kind === "video" && remoteVideo.value) {
           Janus.attachMediaStream(remoteVideo.value, s);
@@ -243,7 +224,6 @@ function subscribeToPublishers(pubs) {
 }
 
 function doSubscribe(pubs) {
-  // Берём все их стримы (video+audio)
   const subscribe = [];
   pubs.forEach((p) => {
     (p.streams || []).forEach((st) => {
@@ -265,9 +245,8 @@ const leave = () => {
   connected.value = false;
 };
 
-onMounted(() => { /* ничего, ждём кнопку */ });
+onMounted(() => { /* ждём кнопку */ });
 onBeforeUnmount(leave);
-
 </script>
 
 <style lang="scss" scoped>
