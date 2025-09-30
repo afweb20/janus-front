@@ -1,22 +1,4 @@
 <template>
-  <div class="participants-grid-wrapper">
-    <div class="participants-grid-content">
-      <div class="participants-grid" 
-        :class="{
-          one: gridItems.length == 1,
-          few: gridItems.length < 5 && gridItems.length > 1,
-          many: gridItems.length >= 5
-        }">
-        <div class="participants-grid-item" v-for="n in gridItems" :key="n">
-          <video class="participants-grid-item-video" />
-        </div>
-      </div>
-      <div class="participants-grid-buttons-wrapper">
-
-      </div>
-    </div>
-  </div>
-  <!-- 
   <h1>You did it!</h1>
   <p>
     Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
@@ -41,7 +23,22 @@
       </div>
     </div>
   </div>
-  -->
+
+  <!-- сетка для множественных звонков -->
+  <!-- <div class="participants-grid-wrapper">
+    <div class="participants-grid-content">
+      <div class="participants-grid" 
+        :class="{
+          one: gridItems.length == 1,
+          few: gridItems.length < 5 && gridItems.length > 1,
+          many: gridItems.length >= 5
+        }">
+        <div class="participants-grid-item" v-for="n in gridItems" :key="n">
+          <video class="participants-grid-item-video" />
+        </div>
+      </div>
+    </div>
+  </div> -->
 </template>
 
 <script setup>
@@ -52,13 +49,13 @@ import adapter from 'webrtc-adapter';
 const gridItems = Array.from({ length: 10 }, (_, i) => i + 1)
 
 // 1) УКАЖИТЕ свой WSS до Janus и ICE
-const JANUS_URL = "wss://janus.tulister.com/janus";
+const JANUS_URL = "wss://janus.tulister.com/";
 const ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
   {
     urls: [
-      "turn:janus.website.com:3478?transport=udp",
-      "turn:janus.website.com:3478?transport=tcp"
+      "turn:janus.tulister.com:3478?transport=udp",
+      "turn:janus.tulister.com:3478?transport=tcp"
     ],
     username: "janus",
     credential: "supersecret"
