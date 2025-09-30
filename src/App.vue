@@ -43,10 +43,17 @@
 
 <script setup>
 import { onMounted, onBeforeUnmount, ref, reactive } from "vue";
-import Janus from 'janus-gateway';
+import * as JanusMod from 'janus-gateway';
 import adapter from 'webrtc-adapter';
 
 const gridItems = Array.from({ length: 10 }, (_, i) => i + 1)
+
+const Janus = (JanusMod && (JanusMod.default || JanusMod.Janus)) || window.Janus;
+
+if (!Janus) {
+  console.error('Janus library failed to load:', { JanusMod, windowJanus: window.Janus });
+  throw new Error('Janus is not available (check bundling/export).');
+}
 
 // 1) УКАЖИТЕ свой WSS до Janus и ICE
 const JANUS_URL = "wss://janus.tulister.com/";
@@ -265,4 +272,5 @@ onBeforeUnmount(leave);
 
 <style lang="scss" scoped>
 @use "@/resources/styles/participants-grid";
+@use "@/resources/styles/participants-local-grid";
 </style>
