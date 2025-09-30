@@ -87,6 +87,8 @@ const connect = async () => {
     return;
   }
 
+  console.log('JANUS_URL:', JANUS_URL, 'ROOM_ID:', ROOM_ID, 'origin:', location.origin);
+
   Janus.init({
     debug: true,
     // adapter уже подключён сайд-эффектом; дефолтные зависимости достаточно
