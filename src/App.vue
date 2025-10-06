@@ -22,9 +22,9 @@
         <div class="flex-1">
           <label class="block text-sm mb-1">Камера</label>
           <select v-model="selectedCamId" class="w-full border rounded px-2 py-1">
-            <option value="__USER__">Фронтальная (facingMode)</option>
+            <!-- <option value="__USER__">Фронтальная (facingMode)</option>
             <option value="__ENV__">Задняя (facingMode)</option>
-            <option v-if="cams.length" disabled>──────────</option>
+            <option v-if="cams.length" disabled>──────────</option> -->
             <option v-for="(d, i) in cams" :key="d.deviceId || i" :value="d.deviceId">
               {{ d.label || `Камера #${i+1}` }}
             </option>
@@ -117,6 +117,10 @@ async function refreshDevices() {
     const list = await navigator.mediaDevices.enumerateDevices();
     mics.value = list.filter(d => d.kind === "audioinput");
     cams.value = list.filter(d => d.kind === "videoinput");
+
+    // LOG
+    console.log("LOG list", list);
+    console.log("LOG cams", cams);
 
     if (!selectedMicId.value && mics.value[0]) selectedMicId.value = mics.value[0].deviceId;
     // selectedCamId по умолчанию оставляем __USER__
