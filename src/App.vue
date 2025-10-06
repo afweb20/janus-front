@@ -63,7 +63,7 @@
 <script setup>
 import { onMounted, onBeforeUnmount, ref, reactive } from "vue";
 // Подключаем adapter как сайд-эффект
-import 'webrtc-adapter';
+import adapter from 'webrtc-adapter';
 
 let Janus;
 
@@ -142,7 +142,7 @@ const connect = async () => {
 
   Janus.init({
     debug: true,
-    dependencies: Janus.useDefaultDependencies(), // adapter уже подключён сайд-эффектом
+    dependencies: Janus.useDefaultDependencies({adapter}),
     callback: () => {
       state.janus = new Janus({
         server: JANUS_URL,
